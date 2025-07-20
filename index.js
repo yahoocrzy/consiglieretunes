@@ -1,5 +1,5 @@
 const { Client, GatewayIntentBits, Collection, ActivityType } = require('discord.js');
-const { joinVoiceChannel, getVoiceConnection } = require('@discordjs/voice');
+const { joinVoiceChannel } = require('@discordjs/voice');
 const fs = require('fs');
 const path = require('path');
 const config = require('./config');

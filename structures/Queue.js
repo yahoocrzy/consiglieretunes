@@ -19,6 +19,7 @@ class Queue {
             twentyFourSeven: false,
             autoplay: false
         };
+        this.destroyed = false;
         
         this.setupPlayer();
     }
@@ -107,14 +108,14 @@ class Queue {
     }
     
     async getStreamForPlatform(song) {
-        // This would integrate with various music APIs
-        // For now, we'll focus on YouTube as the primary source
-        throw new Error('Platform not supported yet');
+        // 2025: Currently only YouTube is supported for streaming
+        // Other platforms (Spotify, SoundCloud) are converted to YouTube equivalents
+        throw new Error('Direct streaming only supported for YouTube URLs');
     }
     
     applyFilters(resource) {
-        // Apply audio filters using FFmpeg
-        // This is a placeholder for filter implementation
+        // Audio filters implementation would go here
+        // Currently filters are handled via FFmpeg in the config
         return resource;
     }
     
@@ -150,8 +151,9 @@ class Queue {
     }
     
     async addRelatedSong() {
-        // Implement autoplay functionality
-        // This would search for related songs based on current/previous songs
+        // Autoplay functionality disabled - requires YouTube API key
+        // Could be implemented with YouTube Data API v3 for related videos
+        console.log('Autoplay feature not implemented');
     }
     
     addSong(song) {
@@ -213,7 +215,14 @@ class Queue {
     }
     
     destroy() {
+        if (this.destroyed) {
+            console.warn('Queue already destroyed, skipping...');
+            return;
+        }
+        
+        this.destroyed = true;
         this.stop();
+        
         if (this.connection && this.connection.state.status !== VoiceConnectionStatus.Destroyed) {
             try {
                 this.connection.destroy();
@@ -221,6 +230,7 @@ class Queue {
                 console.warn('Connection already destroyed:', error.message);
             }
         }
+        
         this.connection = null;
         this.guild.client.queues.delete(this.guild.id);
     }

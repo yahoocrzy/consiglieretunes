@@ -1,7 +1,35 @@
 const ytdl = require('ytdl-core');
 const yts = require('youtube-sr').default;
 const SpotifyWebApi = require('spotify-web-api-node');
+const SoundCloud = require('soundcloud.ts').default;
 const config = require('../config');
+
+// Rate limiter for Spotify API (2025 compliance)
+class SpotifyRateLimiter {
+    constructor() {
+        this.requests = [];
+        this.maxRequests = 90; // Conservative limit (100 - buffer)
+        this.windowMs = 30000; // 30 second window
+    }
+    
+    async makeRequest(requestFn) {
+        this.cleanOldRequests();
+        
+        if (this.requests.length >= this.maxRequests) {
+            const waitTime = this.windowMs - (Date.now() - this.requests[0]);
+            await new Promise(resolve => setTimeout(resolve, waitTime));
+            this.cleanOldRequests();
+        }
+        
+        this.requests.push(Date.now());
+        return await requestFn();
+    }
+    
+    cleanOldRequests() {
+        const now = Date.now();
+        this.requests = this.requests.filter(time => now - time < this.windowMs);
+    }
+}
 
 class MusicSources {
     constructor() {
@@ -9,6 +37,12 @@ class MusicSources {
             clientId: config.spotify.clientId,
             clientSecret: config.spotify.clientSecret
         });
+        
+        // 2025 Spotify rate limiter
+        this.spotifyRateLimiter = new SpotifyRateLimiter();
+        
+        // SoundCloud integration
+        this.soundcloud = new SoundCloud();
         
         // Fast search cache (5 minute TTL)
         this.searchCache = new Map();
@@ -130,9 +164,17 @@ class MusicSources {
                 return cached.results;
             }
             
-            // Fast basic info fetch with timeout
+            // 2025 Enhanced YouTube handling with @distube/ytdl-core
             const info = await Promise.race([
-                ytdl.getBasicInfo(url),
+                ytdl.getBasicInfo(url, {
+                    requestOptions: {
+                        headers: {
+                            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                            'Accept-Language': 'en-US,en;q=0.9',
+                            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8'
+                        }
+                    }
+                }),
                 new Promise((_, reject) => setTimeout(() => reject(new Error('URL timeout')), 8000))
             ]);
             
@@ -172,11 +214,13 @@ class MusicSources {
             const trackId = this.extractSpotifyId(url);
             if (!trackId) return null;
             
-            // Fast Spotify API call with timeout
-            const track = await Promise.race([
-                this.spotify.getTrack(trackId),
-                new Promise((_, reject) => setTimeout(() => reject(new Error('Spotify timeout')), 5000))
-            ]);
+            // 2025 Rate-limited Spotify API call
+            const track = await this.spotifyRateLimiter.makeRequest(async () => {
+                return await Promise.race([
+                    this.spotify.getTrack(trackId),
+                    new Promise((_, reject) => setTimeout(() => reject(new Error('Spotify timeout')), 5000))
+                ]);
+            });
             
             const trackData = track.body;
             
@@ -210,10 +254,36 @@ class MusicSources {
     }
     
     async getSoundCloudInfo(url) {
-        // Placeholder for SoundCloud integration
-        // Would need scdl-core or similar library
-        console.log('SoundCloud support coming soon');
-        return null;
+        try {
+            const cacheKey = `soundcloud-${url}`;
+            const cached = this.searchCache.get(cacheKey);
+            if (cached && Date.now() - cached.timestamp < this.cacheTimeout) {
+                return cached.results;
+            }
+            
+            // 2025 SoundCloud integration
+            const track = await this.soundcloud.tracks.getV2(url);
+            
+            const result = {
+                title: track.title,
+                url: track.permalink_url,
+                duration: this.formatDuration(track.duration / 1000),
+                thumbnail: track.artwork_url,
+                platform: 'soundcloud',
+                author: track.user.username
+            };
+            
+            // Cache result
+            this.searchCache.set(cacheKey, {
+                results: result,
+                timestamp: Date.now()
+            });
+            
+            return result;
+        } catch (error) {
+            console.error('SoundCloud info error:', error);
+            return null;
+        }
     }
     
     async getPlaylist(url) {

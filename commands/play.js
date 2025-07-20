@@ -50,11 +50,23 @@ module.exports = {
                 queue.connection = connection;
                 
                 connection.on(VoiceConnectionStatus.Disconnected, () => {
-                    queue.destroy();
+                    if (queue && !queue.settings?.twentyFourSeven) {
+                        try {
+                            queue.destroy();
+                        } catch (error) {
+                            console.warn('Queue already destroyed:', error.message);
+                        }
+                    }
                 });
                 
                 connection.on(VoiceConnectionStatus.Destroyed, () => {
-                    queue.destroy();
+                    if (queue) {
+                        try {
+                            client.queues.delete(message.guild.id);
+                        } catch (error) {
+                            console.warn('Queue cleanup error:', error.message);
+                        }
+                    }
                 });
                 
             } catch (error) {
