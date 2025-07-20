@@ -1,0 +1,25 @@
+services:
+  - type: web
+    name: concigliere-music-bot
+    env: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /ping
+    envVars:
+      - key: NODE_VERSION
+        value: 18.x
+      - key: NPM_CONFIG_PRODUCTION
+        value: false
+      - key: RENDER_URL
+        sync: false
+    autoDeploy: true
+    
+    # Environment variables to set in Render dashboard:
+    # DISCORD_TOKEN - Your Discord bot token
+    # CLIENT_ID - Your Discord application client ID
+    # SPOTIFY_CLIENT_ID - (Optional) Spotify API client ID
+    # SPOTIFY_CLIENT_SECRET - (Optional) Spotify API client secret
+    # OWNER_ID - Your Discord user ID
+    # PREFIX - Bot command prefix (default: -)
+    # RENDER_URL - Your Render app URL (set automatically by Render)

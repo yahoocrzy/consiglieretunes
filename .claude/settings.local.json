@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:laramusic.app)",
+      "WebFetch(domain:top.gg)",
+      "Bash(mkdir:*)"
+    ],
+    "deny": []
+  }
+}

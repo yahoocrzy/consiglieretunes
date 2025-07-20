@@ -1,0 +1,37 @@
+{
+  "name": "concigliere-music-bot",
+  "version": "1.0.0",
+  "description": "A Discord music bot with all premium features for free",
+  "main": "index.js",
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
+  },
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js",
+    "build": "echo 'No build process required'",
+    "postinstall": "echo 'Dependencies installed successfully'"
+  },
+  "dependencies": {
+    "discord.js": "^14.14.1",
+    "@discordjs/voice": "^0.16.1",
+    "@discordjs/opus": "^0.9.0",
+    "ytdl-core": "^4.11.5",
+    "youtube-sr": "^4.3.4",
+    "spotify-web-api-node": "^5.0.2",
+    "scdl-core": "^3.6.7",
+    "ffmpeg-static": "^5.2.0",
+    "libsodium-wrappers": "^0.7.11",
+    "dotenv": "^16.3.1",
+    "fs": "^0.0.1-security",
+    "express": "^4.18.2",
+    "axios": "^1.6.2"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2"
+  },
+  "keywords": ["discord", "music", "bot", "youtube", "spotify"],
+  "author": "Concigliere",
+  "license": "MIT"
+}
