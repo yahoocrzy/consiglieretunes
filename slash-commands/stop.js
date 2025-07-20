@@ -3,8 +3,8 @@ const EmbedBuilders = require('../utils/embedBuilder');
 
 module.exports = {
     data: new SlashCommandBuilder()
-        .setName('skip')
-        .setDescription('Skip the current song'),
+        .setName('stop')
+        .setDescription('Stop the music and clear the queue'),
     
     async execute(interaction, client) {
         await interaction.deferReply();
@@ -17,12 +17,6 @@ module.exports = {
             });
         }
         
-        if (!queue.currentSong) {
-            return interaction.editReply({
-                embeds: [EmbedBuilders.error('Nothing Playing', 'There is no song currently playing!')]
-            });
-        }
-        
         // Check if user is in the same voice channel
         const voiceChannel = interaction.member.voice.channel;
         if (!voiceChannel || voiceChannel.id !== queue.voiceChannel.id) {
@@ -31,18 +25,18 @@ module.exports = {
             });
         }
         
-        const skippedSong = queue.currentSong;
+        const songsCleared = queue.songs.length;
+        queue.stop();
         
-        if (queue.skip()) {
-            await interaction.editReply({
-                embeds: [EmbedBuilders.success('Song Skipped', 
-                    `⏭️ Skipped **[${skippedSong.title}](${skippedSong.url})**\n` +
-                    `${queue.songs.length > 0 ? `Next up: **${queue.songs[0].title}**` : 'Queue is now empty!'}`)]
-            });
-        } else {
-            await interaction.editReply({
-                embeds: [EmbedBuilders.error('Skip Failed', 'Failed to skip the current song!')]
-            });
-        }
+        await interaction.editReply({
+            embeds: [EmbedBuilders.success('Music Stopped', 
+                `⏹️ Music stopped and queue cleared!\n` +
+                `${songsCleared > 0 ? `Removed **${songsCleared}** songs from queue.` : ''}`)]
+        });
+        
+        // Destroy the queue after a short delay to allow the message to be sent
+        setTimeout(() => {
+            queue.destroy();
+        }, 1000);
     }
 };

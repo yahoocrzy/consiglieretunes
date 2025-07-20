@@ -11,12 +11,13 @@ module.exports = {
                 .setMinValue(1)),
     
     async execute(interaction, client) {
+        await interaction.deferReply();
+        
         const queue = client.queues.get(interaction.guild.id);
         
         if (!queue) {
-            return interaction.reply({
-                embeds: [EmbedBuilders.error('No Queue', 'There is no music queue for this server!')],
-                ephemeral: true
+            return interaction.editReply({
+                embeds: [EmbedBuilders.error('No Queue', 'There is no music queue for this server!')]
             });
         }
         
@@ -24,14 +25,13 @@ module.exports = {
         const queueData = queue.getFormattedQueue(page, 10);
         
         if (page > queueData.totalPages && queueData.totalPages > 0) {
-            return interaction.reply({
-                embeds: [EmbedBuilders.error('Invalid Page', `Page ${page} doesn't exist! There are only ${queueData.totalPages} pages.`)],
-                ephemeral: true
+            return interaction.editReply({
+                embeds: [EmbedBuilders.error('Invalid Page', `Page ${page} doesn't exist! There are only ${queueData.totalPages} pages.`)]
             });
         }
         
         const embed = EmbedBuilders.queue(queue, page, 10);
         
-        await interaction.reply({ embeds: [embed] });
+        await interaction.editReply({ embeds: [embed] });
     }
 };

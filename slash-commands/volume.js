@@ -12,21 +12,21 @@ module.exports = {
                 .setMaxValue(100)),
     
     async execute(interaction, client) {
+        await interaction.deferReply();
+        
         const queue = client.queues.get(interaction.guild.id);
         
         if (!queue) {
-            return interaction.reply({
-                embeds: [EmbedBuilders.error('No Queue', 'There is no music playing!')],
-                ephemeral: true
+            return interaction.editReply({
+                embeds: [EmbedBuilders.error('No Queue', 'There is no music playing!')]
             });
         }
         
         // Check if user is in the same voice channel
         const voiceChannel = interaction.member.voice.channel;
         if (!voiceChannel || voiceChannel.id !== queue.voiceChannel.id) {
-            return interaction.reply({
-                embeds: [EmbedBuilders.error('Wrong Voice Channel', 'You need to be in the same voice channel as the bot!')],
-                ephemeral: true
+            return interaction.editReply({
+                embeds: [EmbedBuilders.error('Wrong Voice Channel', 'You need to be in the same voice channel as the bot!')]
             });
         }
         
@@ -34,11 +34,10 @@ module.exports = {
         
         // If no volume provided, show current volume
         if (volume === null) {
-            return interaction.reply({
+            return interaction.editReply({
                 embeds: [EmbedBuilders.info('Current Volume', 
                     `🔊 Current volume is **${queue.volume}%**\n` +
-                    `Use \`/volume <0-100>\` to change the volume.`)],
-                ephemeral: true
+                    `Use \`/volume <0-100>\` to change the volume.`)]
             });
         }
         
@@ -51,7 +50,7 @@ module.exports = {
         else if (volume < 70) emoji = '🔊';
         else emoji = '📢';
         
-        await interaction.reply({
+        await interaction.editReply({
             embeds: [EmbedBuilders.success('Volume Changed', 
                 `${emoji} Volume changed from **${oldVolume}%** to **${volume}%**`)]
         });
