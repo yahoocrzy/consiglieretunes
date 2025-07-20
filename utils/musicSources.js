@@ -58,24 +58,57 @@ class MusicSources {
     
     async initSpotify() {
         if (config.spotify.clientId && config.spotify.clientSecret) {
-            try {
-                const data = await this.spotify.clientCredentialsGrant();
-                this.spotify.setAccessToken(data.body['access_token']);
-                
-                // Refresh token every hour
-                setInterval(async () => {
-                    try {
-                        const data = await this.spotify.clientCredentialsGrant();
-                        this.spotify.setAccessToken(data.body['access_token']);
-                    } catch (error) {
-                        console.error('Spotify token refresh error:', error);
+            // Retry Spotify initialization with exponential backoff
+            const maxRetries = 3;
+            let retryCount = 0;
+            
+            const attemptInit = async () => {
+                try {
+                    const data = await Promise.race([
+                        this.spotify.clientCredentialsGrant(),
+                        new Promise((_, reject) => 
+                            setTimeout(() => reject(new Error('Spotify init timeout')), 10000)
+                        )
+                    ]);
+                    
+                    this.spotify.setAccessToken(data.body['access_token']);
+                    
+                    // Refresh token every hour with retry logic
+                    setInterval(async () => {
+                        try {
+                            const refreshData = await Promise.race([
+                                this.spotify.clientCredentialsGrant(),
+                                new Promise((_, reject) => 
+                                    setTimeout(() => reject(new Error('Spotify refresh timeout')), 10000)
+                                )
+                            ]);
+                            this.spotify.setAccessToken(refreshData.body['access_token']);
+                        } catch (error) {
+                            console.warn('Spotify token refresh failed, will retry next cycle:', error.message);
+                        }
+                    }, 3600000);
+                    
+                    console.log('✅ Spotify integration enabled');
+                    return true;
+                } catch (error) {
+                    retryCount++;
+                    console.warn(`Spotify init attempt ${retryCount}/${maxRetries} failed:`, error.message);
+                    
+                    if (retryCount < maxRetries) {
+                        const delay = Math.pow(2, retryCount) * 1000; // Exponential backoff
+                        console.log(`Retrying Spotify init in ${delay}ms...`);
+                        await new Promise(resolve => setTimeout(resolve, delay));
+                        return attemptInit();
+                    } else {
+                        console.warn('⚠️ Spotify integration disabled - bot will work without Spotify features');
+                        return false;
                     }
-                }, 3600000);
-                
-                console.log('✅ Spotify integration enabled');
-            } catch (error) {
-                console.error('Spotify initialization error:', error);
-            }
+                }
+            };
+            
+            await attemptInit();
+        } else {
+            console.log('ℹ️ Spotify credentials not provided - Spotify features disabled');
         }
     }
     
