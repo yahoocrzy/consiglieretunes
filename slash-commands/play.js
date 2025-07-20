@@ -14,6 +14,7 @@ module.exports = {
                 .setRequired(true)),
     
     async execute(interaction, client) {
+        // Immediate acknowledgment to prevent timeout
         await interaction.deferReply();
         
         const query = interaction.options.getString('query');
@@ -68,6 +69,11 @@ module.exports = {
         }
         
         try {
+            // Send immediate loading response
+            await interaction.editReply({
+                embeds: [EmbedBuilders.info('Searching...', `🔍 Searching for: **${query}**`)]
+            });
+            
             const results = await musicSources.search(query);
             
             if (results.length === 0) {

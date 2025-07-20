@@ -214,9 +214,14 @@ class Queue {
     
     destroy() {
         this.stop();
-        if (this.connection) {
-            this.connection.destroy();
+        if (this.connection && this.connection.state.status !== VoiceConnectionStatus.Destroyed) {
+            try {
+                this.connection.destroy();
+            } catch (error) {
+                console.warn('Connection already destroyed:', error.message);
+            }
         }
+        this.connection = null;
         this.guild.client.queues.delete(this.guild.id);
     }
     

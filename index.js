@@ -165,9 +165,13 @@ process.on('SIGTERM', () => {
         client.webServer.stop();
     }
     
-    // Destroy all voice connections
+    // Destroy all voice connections safely
     client.queues.forEach(queue => {
-        queue.destroy();
+        try {
+            queue.destroy();
+        } catch (error) {
+            console.warn('Error destroying queue:', error.message);
+        }
     });
     
     client.destroy();
@@ -181,9 +185,13 @@ process.on('SIGINT', () => {
         client.webServer.stop();
     }
     
-    // Destroy all voice connections
+    // Destroy all voice connections safely
     client.queues.forEach(queue => {
-        queue.destroy();
+        try {
+            queue.destroy();
+        } catch (error) {
+            console.warn('Error destroying queue:', error.message);
+        }
     });
     
     client.destroy();

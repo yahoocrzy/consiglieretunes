@@ -10,6 +10,15 @@ class MusicSources {
             clientSecret: config.spotify.clientSecret
         });
         
+        // Fast search cache (5 minute TTL)
+        this.searchCache = new Map();
+        this.cacheTimeout = 5 * 60 * 1000; // 5 minutes
+        
+        // Clean cache every 10 minutes
+        setInterval(() => {
+            this.cleanCache();
+        }, 10 * 60 * 1000);
+        
         this.initSpotify();
     }
     
@@ -37,6 +46,13 @@ class MusicSources {
     }
     
     async search(query, limit = 5) {
+        // Check cache first for instant results
+        const cacheKey = `${query}-${limit}`;
+        const cached = this.searchCache.get(cacheKey);
+        if (cached && Date.now() - cached.timestamp < this.cacheTimeout) {
+            return cached.results;
+        }
+        
         const results = [];
         
         try {
@@ -45,10 +61,20 @@ class MusicSources {
                 const song = await this.getFromURL(query);
                 if (song) results.push(song);
             } else {
-                // Search YouTube
-                const youtubeResults = await this.searchYouTube(query, limit);
+                // Fast YouTube search with timeout protection
+                const youtubeResults = await Promise.race([
+                    this.searchYouTube(query, limit),
+                    new Promise((_, reject) => setTimeout(() => reject(new Error('Search timeout')), 10000))
+                ]);
                 results.push(...youtubeResults);
             }
+            
+            // Cache results for 5 minutes
+            this.searchCache.set(cacheKey, {
+                results: results,
+                timestamp: Date.now()
+            });
+            
         } catch (error) {
             console.error('Search error:', error);
         }
@@ -58,7 +84,12 @@ class MusicSources {
     
     async searchYouTube(query, limit = 5) {
         try {
-            const results = await yts.search(query, { limit: limit, type: 'video' });
+            // Fast search with optimized parameters
+            const results = await yts.search(query, { 
+                limit: Math.min(limit, 10), // Cap limit for speed
+                type: 'video',
+                safeSearch: false // Faster search
+            });
             
             return results.map(video => ({
                 title: video.title,
@@ -92,10 +123,22 @@ class MusicSources {
     
     async getYouTubeInfo(url) {
         try {
-            const info = await ytdl.getBasicInfo(url);
+            // Use cached info if available
+            const cacheKey = `url-${url}`;
+            const cached = this.searchCache.get(cacheKey);
+            if (cached && Date.now() - cached.timestamp < this.cacheTimeout) {
+                return cached.results;
+            }
+            
+            // Fast basic info fetch with timeout
+            const info = await Promise.race([
+                ytdl.getBasicInfo(url),
+                new Promise((_, reject) => setTimeout(() => reject(new Error('URL timeout')), 8000))
+            ]);
+            
             const details = info.videoDetails;
             
-            return {
+            const result = {
                 title: details.title,
                 url: details.video_url,
                 duration: this.formatDuration(parseInt(details.lengthSeconds)),
@@ -103,6 +146,14 @@ class MusicSources {
                 platform: 'youtube',
                 author: details.author.name
             };
+            
+            // Cache URL info
+            this.searchCache.set(cacheKey, {
+                results: result,
+                timestamp: Date.now()
+            });
+            
+            return result;
         } catch (error) {
             console.error('YouTube info error:', error);
             return null;
@@ -111,24 +162,44 @@ class MusicSources {
     
     async getSpotifyInfo(url) {
         try {
+            // Check cache first
+            const cacheKey = `spotify-${url}`;
+            const cached = this.searchCache.get(cacheKey);
+            if (cached && Date.now() - cached.timestamp < this.cacheTimeout) {
+                return cached.results;
+            }
+            
             const trackId = this.extractSpotifyId(url);
             if (!trackId) return null;
             
-            const track = await this.spotify.getTrack(trackId);
+            // Fast Spotify API call with timeout
+            const track = await Promise.race([
+                this.spotify.getTrack(trackId),
+                new Promise((_, reject) => setTimeout(() => reject(new Error('Spotify timeout')), 5000))
+            ]);
+            
             const trackData = track.body;
             
-            // Search for YouTube equivalent
+            // Fast YouTube search for equivalent
             const searchQuery = `${trackData.artists[0].name} ${trackData.name}`;
             const youtubeResults = await this.searchYouTube(searchQuery, 1);
             
             if (youtubeResults.length > 0) {
-                return {
+                const result = {
                     ...youtubeResults[0],
                     title: `${trackData.artists[0].name} - ${trackData.name}`,
                     platform: 'spotify',
                     originalUrl: url,
                     thumbnail: trackData.album.images[0]?.url
                 };
+                
+                // Cache result
+                this.searchCache.set(cacheKey, {
+                    results: result,
+                    timestamp: Date.now()
+                });
+                
+                return result;
             }
             
             return null;
@@ -246,6 +317,16 @@ class MusicSources {
         }
         
         return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+    }
+    
+    cleanCache() {
+        const now = Date.now();
+        for (const [key, value] of this.searchCache.entries()) {
+            if (now - value.timestamp > this.cacheTimeout) {
+                this.searchCache.delete(key);
+            }
+        }
+        console.log(`🧹 Cache cleaned. ${this.searchCache.size} items remaining.`);
     }
 }
 
