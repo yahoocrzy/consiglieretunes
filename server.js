@@ -1,5 +1,4 @@
 const express = require('express');
-const axios = require('axios');
 const config = require('./config');
 
 class WebServer {
@@ -197,11 +196,12 @@ class WebServer {
         
         const selfPing = async () => {
             try {
-                const response = await axios.get(`${renderUrl}/ping`, {
-                    timeout: 10000,
+                const response = await fetch(`${renderUrl}/ping`, {
+                    method: 'GET',
                     headers: {
                         'User-Agent': 'Concigliere-Bot-SelfPing/1.0'
-                    }
+                    },
+                    signal: AbortSignal.timeout(10000)
                 });
                 
                 console.log(`🏓 Self-ping successful: ${response.status} - ${new Date().toISOString()}`);
