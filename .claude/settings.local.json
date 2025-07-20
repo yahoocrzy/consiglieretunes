@@ -3,7 +3,11 @@
     "allow": [
       "WebFetch(domain:laramusic.app)",
       "WebFetch(domain:top.gg)",
-      "Bash(mkdir:*)"
+      "Bash(mkdir:*)",
+      "Bash(git init:*)",
+      "Bash(git add:*)",
+      "Bash(find:*)",
+      "Bash(ls:*)"
     ],
     "deny": []
   }
